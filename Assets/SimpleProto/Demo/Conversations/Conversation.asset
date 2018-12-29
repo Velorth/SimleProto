@@ -1,0 +1,63 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 98dddc0f12f07314f8995732c5939215, type: 3}
+  m_Name: Test Conversation
+  m_EditorClassIdentifier: 
+  _assetGuid: 3d2bdc229ef842a2b67f3bce8f428e8b
+  _nodes:
+  - _id: Root
+    _parentId: 
+    _isPlayerNode: 1
+    _animationTrigger: 
+    _icon: {fileID: 0}
+    _text: 
+    _condition:
+      _blocks: []
+    _action:
+      _blocks: []
+    _linkedGuids:
+    - 791b5138-9f92-4317-825a-5a17d11cf9df
+  - _id: 791b5138-9f92-4317-825a-5a17d11cf9df
+    _parentId: Root
+    _isPlayerNode: 0
+    _animationTrigger: 
+    _icon: {fileID: 0}
+    _text: Hello Player!
+    _condition:
+      _blocks: []
+    _action:
+      _blocks: []
+    _linkedGuids:
+    - 3470be86-d320-4db8-9467-27b67a73459c
+    - f0f3c189-67e0-43af-9952-14b6aa5da4d7
+  - _id: 3470be86-d320-4db8-9467-27b67a73459c
+    _parentId: 791b5138-9f92-4317-825a-5a17d11cf9df
+    _isPlayerNode: 1
+    _animationTrigger: 
+    _icon: {fileID: 0}
+    _text: Answer 1
+    _condition:
+      _blocks: []
+    _action:
+      _blocks: []
+    _linkedGuids: []
+  - _id: f0f3c189-67e0-43af-9952-14b6aa5da4d7
+    _parentId: 791b5138-9f92-4317-825a-5a17d11cf9df
+    _isPlayerNode: 1
+    _animationTrigger: 
+    _icon: {fileID: 0}
+    _text: Answer 2
+    _condition:
+      _blocks: []
+    _action:
+      _blocks: []
+    _linkedGuids: []
