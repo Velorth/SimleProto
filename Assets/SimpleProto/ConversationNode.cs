@@ -6,6 +6,10 @@ using SimpleProto.Scripting;
 using UnityEngine;
 using UnityEngine.Serialization;
 
+// Not supported
+// using SimpleProto.Localization;
+// using SimpleProto.WorldObjects;
+
 namespace SimpleProto
 {
     [Serializable]
@@ -14,14 +18,19 @@ namespace SimpleProto
         [SerializeField, FormerlySerializedAs("Guid")] private string _id = "";
         [SerializeField] private string _parentId = "";
         [SerializeField] private bool _isPlayerNode;
+        // Not supported
+        //[SerializeField] private CharacterRef _overrideSpeaker;
+        //[SerializeField] private CharacterRef _overrideListener;
+        //[SerializeField] private CharacterAnimation _animation;
         [SerializeField] private string _animationTrigger;
         [SerializeField] private Sprite _icon;
 
         [Multiline, FormerlySerializedAs("Text")]
         [SerializeField] private string _text;
-
-        [SerializeField] Script _condition = new Script();
-        [SerializeField] Script _action = new Script();
+        
+        [SerializeField] private Script _condition = new Script();
+        
+        [SerializeField] private Script _action = new Script();
         
         [SerializeField, FormerlySerializedAs("LinksGuids")] private List<string> _linkedGuids = new List<string>();
 
@@ -35,7 +44,26 @@ namespace SimpleProto
             internal set { _id = value; }
         }
 
+        // Not supported
+        //public CharacterRef OverrideSpeaker
+        //{
+        //    get { return _overrideSpeaker; }
+        //    set { _overrideSpeaker = value; }
+        //}
 
+        //public CharacterRef OverrideListener
+        //{
+        //    get => _overrideListener;
+        //    set => _overrideListener = value;
+        //}
+
+        //public CharacterAnimation Animation
+        //{
+        //    get { return _animation; }
+        //    set { _animation = value; }
+        //}
+
+        [Obsolete("Use Animation instead")]
         public string AnimationTrigger
         {
             get { return _animationTrigger; }
@@ -47,7 +75,7 @@ namespace SimpleProto
             get { return _icon; }
             set { _icon = value; }
         }
-
+        
         [NotNull]
         public Script Condition
         {
@@ -60,13 +88,9 @@ namespace SimpleProto
             get { return _action; }
         }
 
-        /// <summary>
-        /// Gets localized text in the conversation node.
-        /// </summary>
-        /// TODO: Add localization module
         public string LocalizedText
         {
-            get { return EvaluationUtils.InterpolateString(Text); }
+            get => Text; // { return EvaluationUtils.InterpolateString(Locale.Localize(Text)); }
         }
 
         public bool IsPlayerNode
@@ -104,15 +128,15 @@ namespace SimpleProto
         {
             try
             {
-                var checkResult = Condition.Evaluate();
-                if (checkResult is bool)
-                    return (bool)checkResult;
+                var checkResult = Condition.EvaluateBoolean();
+                if (checkResult.HasValue)
+                    return checkResult.Value;
 
                 return true;
             }
             catch (Exception e)
             {
-                Debug.LogError(e.Message);
+                Debug.LogException(e);
                 return false;
             }
         }
@@ -125,7 +149,7 @@ namespace SimpleProto
             }
             catch(Exception e)
             {
-                Debug.LogError(e.Message);
+                Debug.LogException(e);
             }
         }
 

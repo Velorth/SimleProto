@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using JetBrains.Annotations;
 using SimpleProto;
-using SimpleProto.Data;
 using SimpleProtoEditor.Scripting;
 using UnityEditor;
 using UnityEditor.IMGUI.Controls;
@@ -44,10 +43,13 @@ namespace SimpleProtoEditor
             new GUIContent("Anger")
         };
 
-        private Conversation _target;
-        private ConversationTreeView _treeView;
-        private Vector2 _treeViewScrollPosition;
+        [SerializeField] private TreeViewState _treeState;
+        [SerializeField] private Conversation _target;
+        [SerializeField] private Vector2 _treeViewScrollPosition;
+
         private SerializedObject _serializedObject;
+        private ConversationTreeView _treeView;
+        private GUIStyle _textAreaStyle;
 
         [MenuItem("Window/Conversation Tree")]
         public static void ShowEditor()
@@ -86,6 +88,11 @@ namespace SimpleProtoEditor
 
         private void OnGUI()
         {
+            _textAreaStyle = new GUIStyle(EditorStyles.textArea)
+            {
+                wordWrap = true
+            };
+
             SelectTarget();
 
             if (_target == null)
@@ -124,16 +131,25 @@ namespace SimpleProtoEditor
             var contentRect = rect.Margin(0, 0, 24, 0);
             var line = contentRect.Top(EditorGUIUtility.singleLineHeight);
 
+            //if (!selection.IsPlayerNode)
+            //{
+            //    line = line.NextVertical();
+            //    EditorGUI.PropertyField(line, selection.Property.FindPropertyRelative("_overrideSpeaker"), new GUIContent("Actor"));
+            //}
+
+            //line = line.NextVertical();
+            //EditorGUI.PropertyField(line, selection.Property.FindPropertyRelative("_overrideListener"), new GUIContent("Listener"));
+
             // Text
             line = line.NextVertical(EditorGUIUtility.singleLineHeight);
             EditorGUI.LabelField(line, NodeTextLabel);
-            line = line.NextVertical(EditorGUIUtility.singleLineHeight * 3);
-            selection.Text = EditorGUI.TextArea(line, selection.Text);
+            line = line.NextVertical(EditorGUIUtility.singleLineHeight * 5);
+            selection.Text = EditorGUI.TextArea(line, selection.Text, _textAreaStyle);
 
             // Animation
             line = line.NextVertical(EditorGUIUtility.singleLineHeight);
             var animationIndex = Array.IndexOf(AnimationTriggers, selection.Animation);
-            animationIndex = EditorGUI.Popup(line, NodeAnimationLabel, animationIndex, AnimationTriggerLabels);
+            animationIndex = EditorGUI.Popup(line, new GUIContent("Animation (Legacy)"), animationIndex, AnimationTriggerLabels);
             if (animationIndex >= 0)
             {
                 selection.Animation = AnimationTriggers[animationIndex];
@@ -141,6 +157,8 @@ namespace SimpleProtoEditor
 
             line = line.NextVertical(EditorGUIUtility.singleLineHeight);
             EditorGUI.PropertyField(line, selection.Property.FindPropertyRelative("_icon"), new GUIContent("Icon"));
+            
+            // Scripts
             var condition = selection.Property.FindPropertyRelative("_condition");
             var action = selection.Property.FindPropertyRelative("_action");
             line = line.NextVertical(EditorGUI.GetPropertyHeight(condition));
@@ -211,21 +229,14 @@ namespace SimpleProtoEditor
         {
             // User can select Conversation directly
             var selectedAsset = Selection.activeObject as Conversation;
-
-            // Or select a creature with assigned conversation
-            //if (selectedAsset == null && Selection.activeGameObject != null)
-            //{
-            //    var marker = Selection.activeGameObject.GetComponent<CreatureModelProvider>();
-            //    if (marker != null)
-            //    {
-            //        selectedAsset = marker.Data.Conversation;
-            //    }
-            //}
-
+            
             // SerializedObject for previously selected conversation should be destroyed
             if (selectedAsset != null && selectedAsset != _target)
             {
                 _target = selectedAsset;
+                _target.EnsureRootNodeExists();
+                
+                _treeState = null;
                 if (_serializedObject != null)
                 {
                     _serializedObject.Dispose();
@@ -235,8 +246,13 @@ namespace SimpleProtoEditor
 
             if (_serializedObject == null && _target != null)
             {
+                if (_treeState == null)
+                {
+                    _treeState = new TreeViewState();
+                }
+
                 _serializedObject = new SerializedObject(_target);
-                _treeView = new ConversationTreeView(new TreeViewState(), _serializedObject);
+                _treeView = new ConversationTreeView(_treeState, _serializedObject);
             }
         }
     }

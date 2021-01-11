@@ -30,17 +30,18 @@ namespace SimpleProto.Scripting
         /// <param name="func">Function to register.</param>
         public static void RegisterAction(string name, Action func)
         {
-            _functionsMap.Add(name, new FunctionInfo
+            var functionInfo = new FunctionInfo
             {
                 Name = name,
                 ReturnType = typeof(void),
                 ArgTypes = NoArgs,
-                Function = parameters =>
+                Function = environment =>
                 {
                     func();
-                    return null;
                 }
-            });
+            };
+            _functionsMap.Add(name, functionInfo);
+            _functions.Add(functionInfo);
         }
 
         /// <summary>
@@ -48,19 +49,26 @@ namespace SimpleProto.Scripting
         /// </summary>
         /// <param name="name">Name of the function.</param>
         /// <param name="func">Function to register.</param>
-        public static void RegisterAction<TArg0>(string name, [NotNull]Action<TArg0> func)
+        public static void RegisterAction<TArg0>(string name, [NotNull]Action<TArg0> func) where TArg0 : UnityEngine.Object
         {
-            _functionsMap.Add(name, new FunctionInfo
+            RegisterFunction(new FunctionInfo
             {
                 Name = name,
                 ReturnType = typeof(void),
-                ArgTypes = new [] { typeof(TArg0) },
-                Function = parameters =>
+                ArgTypes = new[] { typeof(TArg0) },
+                Function = environment =>
                 {
-                    func((TArg0)parameters[0]);
-                    return null;
+                    var arg = environment.PopObject<TArg0>();
+
+                    func(arg);
                 }
             });
+        }
+
+        public static void RegisterFunction(FunctionInfo functionInfo)
+        {
+            _functionsMap.Add(functionInfo.Name, functionInfo);
+            _functions.Add(functionInfo);
         }
 
         /// <summary>
@@ -68,19 +76,22 @@ namespace SimpleProto.Scripting
         /// </summary>
         /// <param name="name">Name of the function.</param>
         /// <param name="func">Function to register.</param>
-        public static void RegisterAction<TArg0, TArg1>(string name, [NotNull]Action<TArg0, TArg1> func)
+        public static void RegisterAction<TArg0, TArg1>(string name, [NotNull]Action<TArg0, TArg1> func) where TArg0 : UnityEngine.Object where TArg1 : UnityEngine.Object
         {
-            _functionsMap.Add(name, new FunctionInfo
+            var functionInfo = new FunctionInfo
             {
                 Name = name,
                 ReturnType = typeof(void),
                 ArgTypes = new[] { typeof(TArg0), typeof(TArg1) },
-                Function = parameters =>
+                Function = environment =>
                 {
-                    func((TArg0)parameters[0], (TArg1)parameters[1]);
-                    return null;
+                    var arg1 = environment.PopObject<TArg1>();
+                    var arg0 = environment.PopObject<TArg0>();
+                    func(arg0, arg1);
                 }
-            });
+            };
+            _functionsMap.Add(name, functionInfo);
+            _functions.Add(functionInfo);
         }
 
         /// <summary>
@@ -88,18 +99,21 @@ namespace SimpleProto.Scripting
         /// </summary>
         /// <param name="name">Name of the function.</param>
         /// <param name="func">Function to register.</param>
-        public static void RegisterFunction<TArg0, TResult>(string name, [NotNull] Func<TArg0, TResult> func)
+        public static void RegisterBoolFunction<TArg0>(string name, [NotNull] Predicate<TArg0> func) where TArg0 : UnityEngine.Object
         {
-            _functionsMap.Add(name, new FunctionInfo
+            var functionInfo = new FunctionInfo
             {
                 Name = name,
-                ReturnType = typeof(TResult),
+                ReturnType = typeof(bool),
                 ArgTypes = new []{ typeof(TArg0) },
-                Function = parameters =>
+                Function = environment =>
                 {
-                    return func((TArg0)parameters[0]);
+                    var arg = environment.PopObject<TArg0>();
+                    environment.Push(func(arg));
                 }
-            });
+            };
+            _functionsMap.Add(name, functionInfo);
+            _functions.Add(functionInfo);
         }
 
         /// <summary>

@@ -8,48 +8,71 @@ namespace SimpleProto.Scripting
     public sealed class Script
     {
         [SerializeField] private ScriptBlock[] _blocks = { };
-        
-        public object Evaluate()
+
+        private readonly ScriptEnvironment _environment = new ScriptEnvironment();
+
+        public void Evaluate()
         {
+            _environment.Clear();
             var stackIndex = 0;
-            object result = null;
             while (stackIndex < _blocks.Length)
             {
-                result = Evaluate(ref stackIndex);
+                Evaluate(ref stackIndex);
             }
 
-            return result;
         }
 
-        private object Evaluate(ref int index)
+        public bool? EvaluateBoolean()
+        {
+            _environment.Clear();
+            var stackIndex = 0;
+            while (stackIndex < _blocks.Length)
+            {
+                Evaluate(ref stackIndex);
+
+                if (_environment.HasValue)
+                {
+                    var lastResult = _environment.PopBoolean();
+                    if (!lastResult)
+                        return false;
+                }
+            }
+
+            return true;
+        }
+
+        private void Evaluate(ref int index)
         {
             var block = _blocks[index];
             index++;
             switch (block.Type)
             {
                 case ScriptBlockType.Object:
-                    return block.ObjectValue;
+                    _environment.Push(block.ObjectValue);
+                    break;
                 case ScriptBlockType.Integer:
-                    return block.IntegerValue;
+                    _environment.Push(block.IntegerValue);
+                    break;
                 case ScriptBlockType.Float:
-                    return block.FloatValue;
+                    _environment.Push(block.FloatValue);
+                    break;
                 case ScriptBlockType.String:
-                    return block.StringValue;
+                    _environment.Push(block.StringValue);
+                    break;
                 case ScriptBlockType.Function:
                     var function = ScriptLibrary.FindFunction(block.FunctionName);
                     if (function == null)
                     {
-                        Debug.LogErrorFormat("Function '{0}' not found", block.FunctionName);
-                        return null;
+                        throw new NotSupportedException($"Function '{block.FunctionName}' not found");
                     }
 
-                    var arguments = new object[block.Arity];
-                    for (int argumentIndex = 0; argumentIndex < block.Arity; ++argumentIndex)
+                    for (int argumentIndex = 0; argumentIndex < function.Arity; ++argumentIndex)
                     {
-                        arguments[argumentIndex] = Evaluate(ref index);
+                        Evaluate(ref index);
                     }
 
-                   return function.Evaluate(arguments);
+                    function.Function(_environment);
+                    break;
                 default:
                     throw new NotImplementedException();
             }
@@ -57,7 +80,14 @@ namespace SimpleProto.Scripting
 
         static Script()
         {
-            // TODO: Register your scripting API here
+            ScriptLibrary.RegisterFunction(new FunctionInfo { ArgTypes = new []{ typeof(bool) }, ReturnType = typeof(bool), Name = "not", Function = OperatorNot });
+        }
+        
+
+        public static void OperatorNot(ScriptEnvironment e)
+        {
+            var arg = e.PopBoolean();
+            e.Push(!arg);
         }
     }
 }

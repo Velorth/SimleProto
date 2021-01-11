@@ -10,7 +10,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 98dddc0f12f07314f8995732c5939215, type: 3}
-  m_Name: Test Conversation
+  m_Name: Conversation
   m_EditorClassIdentifier: 
   _assetGuid: 3d2bdc229ef842a2b67f3bce8f428e8b
   _nodes:
@@ -44,20 +44,96 @@ MonoBehaviour:
     _isPlayerNode: 1
     _animationTrigger: 
     _icon: {fileID: 0}
-    _text: Answer 1
+    _text: I want ask some questions
     _condition:
       _blocks: []
     _action:
       _blocks: []
-    _linkedGuids: []
+    _linkedGuids:
+    - f2c5c457-fa00-4843-be40-d764d720d3e9
   - _id: f0f3c189-67e0-43af-9952-14b6aa5da4d7
     _parentId: 791b5138-9f92-4317-825a-5a17d11cf9df
     _isPlayerNode: 1
     _animationTrigger: 
     _icon: {fileID: 0}
-    _text: Answer 2
+    _text: Goodby
     _condition:
       _blocks: []
     _action:
       _blocks: []
     _linkedGuids: []
+  - _id: f2c5c457-fa00-4843-be40-d764d720d3e9
+    _parentId: 3470be86-d320-4db8-9467-27b67a73459c
+    _isPlayerNode: 0
+    _animationTrigger: 
+    _icon: {fileID: 0}
+    _text: What do you want to know?
+    _condition:
+      _blocks: []
+    _action:
+      _blocks: []
+    _linkedGuids:
+    - 5863aaef-8cb8-42b7-bd95-9042505cb62e
+    - a32c8e5e-0a40-4047-aaba-a143d37a58ea
+  - _id: 5863aaef-8cb8-42b7-bd95-9042505cb62e
+    _parentId: f2c5c457-fa00-4843-be40-d764d720d3e9
+    _isPlayerNode: 1
+    _animationTrigger: 
+    _icon: {fileID: 0}
+    _text: Ask about A
+    _condition:
+      _blocks: []
+    _action:
+      _blocks: []
+    _linkedGuids:
+    - c5f566d2-0ef7-4f9b-95b9-acba37a93ffe
+  - _id: c5f566d2-0ef7-4f9b-95b9-acba37a93ffe
+    _parentId: 5863aaef-8cb8-42b7-bd95-9042505cb62e
+    _isPlayerNode: 0
+    _animationTrigger: 
+    _icon: {fileID: 0}
+    _text: Answer about A
+    _condition:
+      _blocks: []
+    _action:
+      _blocks: []
+    _linkedGuids:
+    - c56eb125-f914-44c7-bdf7-2e623a559e4e
+    - f0f3c189-67e0-43af-9952-14b6aa5da4d7
+  - _id: c56eb125-f914-44c7-bdf7-2e623a559e4e
+    _parentId: c5f566d2-0ef7-4f9b-95b9-acba37a93ffe
+    _isPlayerNode: 1
+    _animationTrigger: 
+    _icon: {fileID: 0}
+    _text: Back to my questions
+    _condition:
+      _blocks: []
+    _action:
+      _blocks: []
+    _linkedGuids:
+    - f2c5c457-fa00-4843-be40-d764d720d3e9
+  - _id: a32c8e5e-0a40-4047-aaba-a143d37a58ea
+    _parentId: f2c5c457-fa00-4843-be40-d764d720d3e9
+    _isPlayerNode: 1
+    _animationTrigger: 
+    _icon: {fileID: 0}
+    _text: Ask about B
+    _condition:
+      _blocks: []
+    _action:
+      _blocks: []
+    _linkedGuids:
+    - 893412b3-c42c-4e89-93f5-bb44ceb1e6ad
+  - _id: 893412b3-c42c-4e89-93f5-bb44ceb1e6ad
+    _parentId: a32c8e5e-0a40-4047-aaba-a143d37a58ea
+    _isPlayerNode: 0
+    _animationTrigger: 
+    _icon: {fileID: 0}
+    _text: Answer about B
+    _condition:
+      _blocks: []
+    _action:
+      _blocks: []
+    _linkedGuids:
+    - c56eb125-f914-44c7-bdf7-2e623a559e4e
+    - f0f3c189-67e0-43af-9952-14b6aa5da4d7

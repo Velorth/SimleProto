@@ -1,7 +1,10 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using SimpleProto.Scripting;
 using UnityEditor;
+using UnityEditorInternal;
 using UnityEngine;
 
 namespace SimpleProtoEditor.Scripting
@@ -9,171 +12,202 @@ namespace SimpleProtoEditor.Scripting
     [CustomPropertyDrawer(typeof(Script), true)]
     public sealed class ScriptPropertyDrawer : PropertyDrawer
     {
-        private static readonly GUIContent MenuLabel = new GUIContent("*");
-        private static readonly GUIContent FunctionLabel = new GUIContent("func");
-        private static readonly GUIContent ObjectLabel = new GUIContent("obj");
-        private static readonly GUIContent IntegerLabel = new GUIContent("num");
-        private static readonly GUIContent FloatLabel = new GUIContent("float");
-        private static readonly GUIContent BooleanLabel = new GUIContent("bool");
-        private static readonly GUIContent StringLabel = new GUIContent("str");
+        private static string[] _functionNames = ScriptLibrary.Functions.Select(fi => fi.Name).ToArray();
+
+        private sealed class State
+        {
+            public ReorderableList BlocksList { get; set; }
+            public int LastSelectedIndex { get; set; }
+            public SerializedObject SerializedObject { get; set; }
+        }
+
+        private struct BlockDisplayInfo
+        {
+            public int Indent { get; set; }
+            public Type ExpectedType { get; set; }
+        }
 
         private SerializedProperty _serializedProperty;
         private SerializedProperty _blocks;
-        private Stack<int> _intentStack = new Stack<int>();
+        private Stack<int> _indentStack = new Stack<int>();
         private Stack<FunctionInfo> _functionsStack = new Stack<FunctionInfo>();
+        private Dictionary<string, State> _states = new Dictionary<string, State>();
+        private List<BlockDisplayInfo> _displayInfo = new List<BlockDisplayInfo>();
+        private GUIContent _label;
+
+        private State GetState(SerializedProperty property)
+        {
+            var key = property.propertyPath;
+            _states.TryGetValue(key, out var state);
+            if (state == null || state.SerializedObject != property.serializedObject)
+            {
+                state = new State
+                {
+                    SerializedObject = property.serializedObject,
+                    BlocksList = new ReorderableList(property.serializedObject, property.FindPropertyRelative("_blocks"))
+                    {
+                        drawHeaderCallback = OnDrawHeader,
+                        drawElementCallback = OnDrawElement,
+                        draggable = true
+                    }
+                };
+
+                _states[key] = state;
+            }
+
+            return state;
+        }
+
+        private void OnDrawElement(Rect rect, int index, bool isactive, bool isfocused)
+        {
+            var blocks = _serializedProperty.FindPropertyRelative("_blocks");
+            var blockProperty = blocks.GetArrayElementAtIndex(index);
+
+            var blockTypeProperty = blockProperty.FindPropertyRelative("_type");
+
+            var indent = _displayInfo[index].Indent;
+            var expectedType = _displayInfo[index].ExpectedType;
+
+            rect.y += 1.5f;
+            rect.height = EditorGUIUtility.singleLineHeight;
+            var valueRect = rect.Margin(indent * 20, 72 + 2, 0, 0);
+
+            EditorGUI.PropertyField(rect.Right(72), blockTypeProperty, GUIContent.none);
+
+            switch ((ScriptBlockType)blockTypeProperty.enumValueIndex)
+            {
+                case ScriptBlockType.Function:
+                    var functionName = blockProperty.FindPropertyRelative("_functionName");
+                    var functionIndex = Array.IndexOf(_functionNames, functionName.stringValue);
+                    functionIndex = EditorGUI.Popup(valueRect, functionIndex, _functionNames);
+                    if (functionIndex != -1)
+                    {
+                        functionName.stringValue = _functionNames[functionIndex];
+                    }
+                    break;
+                case ScriptBlockType.Boolean:
+                    EditorGUI.PropertyField(valueRect, blockProperty.FindPropertyRelative("_booleanValue"), GUIContent.none);
+                    break;
+                case ScriptBlockType.Integer:
+                    var intValueProperty = blockProperty.FindPropertyRelative("_intValue");
+                    if (expectedType.IsEnum)
+                    {
+                        var enumValue = (Enum)Enum.ToObject(expectedType, intValueProperty.intValue);
+                        intValueProperty.intValue = Convert.ToInt32(EditorGUI.EnumPopup(valueRect, enumValue));
+                    }
+                    else
+                    {
+                        EditorGUI.PropertyField(valueRect, intValueProperty, GUIContent.none);
+                    }
+                    break;
+                case ScriptBlockType.Float:
+                    EditorGUI.PropertyField(valueRect, blockProperty.FindPropertyRelative("_floatValue"), GUIContent.none);
+                    break;
+                case ScriptBlockType.String:
+                    EditorGUI.PropertyField(valueRect, blockProperty.FindPropertyRelative("_stringValue"), GUIContent.none);
+                    break;
+                case ScriptBlockType.Object:
+                    var objectValueProperty = blockProperty.FindPropertyRelative("_objectValue");
+                    objectValueProperty.objectReferenceValue = EditorGUI.ObjectField(valueRect, objectValueProperty.objectReferenceValue, expectedType, false);
+                    break;
+                default:
+                    EditorGUI.LabelField(valueRect, "Unknown type");
+                    break;
+            }
+        }
+
+        private void OnDrawHeader(Rect rect)
+        {
+            EditorGUI.LabelField(rect, _label);
+        }
+
+        private void BuildDisplayInfo()
+        {
+            _displayInfo.Clear();
+            _indentStack.Clear();
+
+            var counter = 0;
+            FunctionInfo functionInfo = null;
+            for (var i = 0; i < _blocks.arraySize; ++i)
+            {
+                if (functionInfo != null)
+                {
+                    var argIndex = functionInfo.Arity - counter;
+                    _displayInfo.Add(new BlockDisplayInfo
+                    {
+                        ExpectedType = argIndex >= 0 && argIndex < functionInfo.ArgTypes.Length ? functionInfo.ArgTypes[argIndex] : typeof(void),
+                        Indent = _indentStack.Count
+                    });
+                }
+                else
+                {
+                    _displayInfo.Add(new BlockDisplayInfo
+                    {
+                        ExpectedType = typeof(void),
+                        Indent = _indentStack.Count
+                    });
+                }
+
+                var block = _blocks.GetArrayElementAtIndex(i);
+                var blockType = block.FindPropertyRelative("_type");
+
+                if ((ScriptBlockType) blockType.enumValueIndex == ScriptBlockType.Function)
+                {
+                    var functionName = block.FindPropertyRelative("_functionName");
+                    _indentStack.Push(counter);
+                    functionInfo = ScriptLibrary.FindFunction(functionName.stringValue);
+                    counter = functionInfo?.Arity ?? 0;
+                    _functionsStack.Push(functionInfo);
+                }
+                else
+                {
+                    counter--;
+                }
+
+                if (counter == 0 && _indentStack.Count > 0)
+                {
+                    counter = _indentStack.Pop();
+                    functionInfo = _functionsStack.Pop();
+                }
+            }
+        }
 
         public override float GetPropertyHeight(SerializedProperty property, GUIContent label)
         {
             Initialize(property);
 
-            return (EditorGUIUtility.singleLineHeight + EditorGUIUtility.standardVerticalSpacing) * (_blocks.arraySize + 2);
+            var state = GetState(property);
+
+            return state.BlocksList.GetHeight();
         }
 
         public override void OnGUI(Rect position, SerializedProperty property, GUIContent label)
         {
+            var indent = EditorGUI.indentLevel;
+            EditorGUI.indentLevel = 0;
+
             Initialize(property);
 
+            BuildDisplayInfo();
+
             EditorGUI.BeginProperty(position, label, property);
-            var line = position.Top(EditorGUIUtility.singleLineHeight);
-            EditorGUI.LabelField(line, label);
 
-            EditorGUI.indentLevel++;
-            line = line.NextVertical(EditorGUIUtility.singleLineHeight);
-            var counter = 0;
-            FunctionInfo functionInfo = null;
-            for (var i = 0; i < _blocks.arraySize; ++i)
-            {
-                var block = _blocks.GetArrayElementAtIndex(i);
-                var blockType = block.FindPropertyRelative("_type");
+            var state = GetState(property);
+            state.BlocksList.index = state.LastSelectedIndex;
 
-                var labelRect = line.Left(48);
-                var valueRect = line.Margin(48, 32, 0, 0);
-                var menuRect = line.Right(32);
-                EditorGUIUtility.labelWidth = 1;
-                switch ((ScriptBlockType)blockType.enumValueIndex)
-                {
-                    case ScriptBlockType.Function:
-                        var functionName = block.FindPropertyRelative("_functionName");
-                        EditorGUI.LabelField(labelRect, FunctionLabel);
-                        EditorGUI.PropertyField(valueRect.Margin(0, 48, 0, 0), functionName, GUIContent.none);
-                        EditorGUI.PropertyField(valueRect.Right(48), block.FindPropertyRelative("_arity"), GUIContent.none);
-                        _intentStack.Push(counter);
-                        EditorGUI.indentLevel++;
-                        counter = block.FindPropertyRelative("_arity").intValue;
-                        functionInfo = ScriptLibrary.FindFunction(functionName.stringValue);
-                        _functionsStack.Push(functionInfo);
-                        break;
-                    case ScriptBlockType.Object:
-                        var objectValue = block.FindPropertyRelative("_objectValue");
-                        var type = functionInfo != null
-                            ? functionInfo.ArgTypes[functionInfo.Arity - counter]
-                            : typeof(UnityEngine.Object);
-                        EditorGUI.LabelField(labelRect, ObjectLabel);
-                        EditorGUI.ObjectField(valueRect, objectValue, type, GUIContent.none);
-                        counter--;
-                        break;
-                    case ScriptBlockType.Boolean:
-                        EditorGUI.LabelField(labelRect, BooleanLabel);
-                        EditorGUI.PropertyField(valueRect, block.FindPropertyRelative("_booleanValue"), GUIContent.none);
-                        counter--;
-                        break;
-                    case ScriptBlockType.String:
-                        EditorGUI.LabelField(labelRect, StringLabel);
-                        EditorGUI.PropertyField(valueRect, block.FindPropertyRelative("_stringValue"), GUIContent.none);
-                        counter--;
-                        break;
-                    case ScriptBlockType.Integer:
-                        EditorGUI.LabelField(labelRect, IntegerLabel);
-                        EditorGUI.PropertyField(valueRect, block.FindPropertyRelative("_intValue"), GUIContent.none);
-                        counter--;
-                        break;
-                    case ScriptBlockType.Float:
-                        EditorGUI.LabelField(labelRect, FloatLabel);
-                        EditorGUI.PropertyField(valueRect, block.FindPropertyRelative("_floatValue"), GUIContent.none);
-                        counter--;
-                        break;
-                }
+            state.BlocksList.DoList(position);
 
-                if (counter == 0 && _intentStack.Count > 0)
-                {
-                    EditorGUI.indentLevel--;
-                    counter = _intentStack.Pop();
-                    functionInfo = _functionsStack.Pop();
-                }
+            state.LastSelectedIndex = state.BlocksList.index;
 
-                if (EditorGUI.DropdownButton(menuRect, MenuLabel, FocusType.Passive))
-                {
-                    var index = i;
-                    var menu = new GenericMenu();
-                    menu.AddItem(new GUIContent("Convert to Function"), false, () =>
-                    {
-                        blockType.enumValueIndex = (int) ScriptBlockType.Function;
-                        blockType.serializedObject.ApplyModifiedProperties();
-                    });
-                    menu.AddItem(new GUIContent("Convert to Object"), false, () =>
-                    {
-                        blockType.enumValueIndex = (int)ScriptBlockType.Object;
-                        blockType.serializedObject.ApplyModifiedProperties();
-                    });
-                    menu.AddItem(new GUIContent("Convert to String"), false, () =>
-                    {
-                        blockType.enumValueIndex = (int)ScriptBlockType.String;
-                        blockType.serializedObject.ApplyModifiedProperties();
-                    });
-                    menu.AddItem(new GUIContent("Convert to Number"), false, () =>
-                    {
-                        blockType.enumValueIndex = (int)ScriptBlockType.Integer;
-                        blockType.serializedObject.ApplyModifiedProperties();
-                    });
-                    menu.AddItem(new GUIContent("Convert to Boolean"), false, () =>
-                    {
-                        blockType.enumValueIndex = (int)ScriptBlockType.Boolean;
-                        blockType.serializedObject.ApplyModifiedProperties();
-                    });
-                    menu.AddItem(new GUIContent("Add"), false, () =>
-                    {
-                        var insertationIndex = index + 1;
-                        AddScriptBlock(insertationIndex);
-                    });
-                    menu.AddItem(new GUIContent("Remove"), false, () =>
-                    {
-                        _blocks.DeleteArrayElementAtIndex(index);
-                        _blocks.serializedObject.ApplyModifiedProperties();
-                    });
-                    menu.ShowAsContext();
-                }
-
-                line = line.NextVertical(EditorGUIUtility.singleLineHeight);
-            }
-
-            if (GUI.Button(line.Right(32).Margin(0,0,0, EditorGUIUtility.standardVerticalSpacing), "+"))
-            {
-                AddScriptBlock(_blocks.arraySize);
-            }
-
-            EditorGUI.indentLevel--;
             EditorGUI.EndProperty();
-        }
-
-        private void AddScriptBlock(int insertationIndex)
-        {
-            _blocks.InsertArrayElementAtIndex(insertationIndex);
-            var newBlock = _blocks.GetArrayElementAtIndex(insertationIndex);
-            newBlock.FindPropertyRelative("_functionName").stringValue = "Foo";
-            newBlock.FindPropertyRelative("_arity").intValue = 0;
-            newBlock.FindPropertyRelative("_type").enumValueIndex = (int) ScriptBlockType.Function;
-            newBlock.FindPropertyRelative("_objectValue").objectReferenceValue = null;
-            _blocks.serializedObject.ApplyModifiedProperties();
+            EditorGUI.indentLevel = indent;
         }
 
         private void Initialize(SerializedProperty property)
         {
-            if (_serializedProperty != property)
-            {
-                _serializedProperty = property;
-
-                _blocks = _serializedProperty.FindPropertyRelative("_blocks");
-            }
+            _serializedProperty = property;
+            _label = new GUIContent(property.displayName);
+            _blocks = _serializedProperty.FindPropertyRelative("_blocks");
         }
 
         public static void SetDefaultValues(SerializedProperty property)

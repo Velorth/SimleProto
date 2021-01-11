@@ -1,10 +1,8 @@
 ﻿using System;
-using System.Reflection;
-using JetBrains.Annotations;
 
 namespace SimpleProto.Scripting
 {
-    public delegate object ScriptFunction(object[] parameters);
+    public delegate void ScriptFunction(ScriptEnvironment environment);
 
     public sealed class FunctionInfo
     {
@@ -14,16 +12,8 @@ namespace SimpleProto.Scripting
 
         public Type[] ArgTypes { get; internal set; }
 
-        public int Arity
-        {
-            get { return ArgTypes.Length; }
-        }
+        public int Arity => ArgTypes.Length;
 
         public ScriptFunction Function { get; internal set; }
-
-        public object Evaluate(object[] arguments)
-        {
-            return Function(arguments);
-        }
     }
 }

@@ -18,7 +18,6 @@ namespace SimpleProto.Scripting
     internal class ScriptBlock
     {
         [SerializeField] private ScriptBlockType _type = ScriptBlockType.Integer;
-        [SerializeField] private int _arity = 0;
         [SerializeField] private string _functionName = "";
         [SerializeField] private Object _objectValue = null;
         [SerializeField] private string _stringValue = "";
@@ -34,11 +33,6 @@ namespace SimpleProto.Scripting
         public string FunctionName
         {
             get { return _functionName; }
-        }
-
-        public int Arity
-        {
-            get { return _arity; }
         }
 
         public Object ObjectValue
